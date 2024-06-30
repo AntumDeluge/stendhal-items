@@ -491,10 +491,6 @@ const parser = {
 	}
 };
 
-function onClassSelected() {
-	remote.fetchWeaponsForClass();
-}
-
 function selectClass(className, sortBy=undefined) {
 	const prevSelected = main.data["class"];
 	const select = document.getElementById("classes");
@@ -506,7 +502,7 @@ function selectClass(className, sortBy=undefined) {
 		}
 	}
 	if (main.data["class"] !== prevSelected) {
-		onClassSelected();
+		remote.fetchWeaponsForClass();
 	}
 }
 
