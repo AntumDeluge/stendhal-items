@@ -25,7 +25,7 @@
 // Stendhal's repo URL
 const repoPrefix = "https://raw.githubusercontent.com/arianne/stendhal/";
 
-// weapon classes that will be parsed
+// item classes that will be parsed
 const includes = ["all", "axes", "clubs", "ranged", "swords", "whips"];
 
 /**
@@ -213,17 +213,17 @@ const remote = {
 
 		if (main.className !== "all") {
 			await remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
-				parser.getWeapons(content);
+				parser.getItems(content);
 			});
 			return;
 		}
 
 		const select = document.getElementById("classes");
 		const options = select.options;
-		// skip first index since "all" is not an actual weapon class
+		// skip first index since "all" is not an actual item class
 		for (let idx = 1; idx < options.length; idx++) {
 			await remote.fetchText("data/conf/items/" + options[idx].value + ".xml", (content) => {
-				parser.getWeapons(content);
+				parser.getItems(content);
 			});
 		}
 	}
@@ -283,9 +283,9 @@ const main = {
 	 * Displays loaded items data.
 	 */
 	displayItems() {
-		const weapons = this.getSorted();
+		const items = this.getSorted();
 
-		for (const properties of weapons) {
+		for (const properties of items) {
 			const link = "https://stendhalgame.org/item/" + properties["class"] + "/" + properties["name"].replaceAll(" ", "_") + ".html";
 			const classList = ["cell"];
 			if (this.odd) {
@@ -417,15 +417,15 @@ const parser = {
 				}
 				versionString += v;
 			}
-			document.getElementById("title").innerText = "Stendhal " + versionString + " Weapons";
+			document.getElementById("title").innerText = "Stendhal " + versionString + " Items";
 		}
 	},
 
 	/**
-	 * Parses weapon classes from fetched data.
+	 * Parses item classes from fetched data.
 	 *
 	 * @param {string} content
-	 *   Weapons XML config data.
+	 *   Items XML config data.
 	 */
 	getClasses(content) {
 		content = util.normalize(content);
@@ -453,9 +453,9 @@ const parser = {
 		let className = params.get("class");
 		if (includes.indexOf(className) < 0) {
 			if (typeof(className) === "string") {
-				logger.error("Unknown weapon class: " + className);
+				logger.error("Unknown item class: " + className);
 			}
-			// default to show all weapons
+			// default to show all items
 			className = "all";
 		}
 		main.selectClass(className);
@@ -467,7 +467,7 @@ const parser = {
 	 * @param {string} content
 	 *   Fetched items XML data.
 	 */
-	getWeapons(content) {
+	getItems(content) {
 		const xml = new DOMParser().parseFromString(content, "text/xml");
 		const items = xml.getElementsByTagName("item");
 		for (let idx = 0; idx < items.length; idx++) {
