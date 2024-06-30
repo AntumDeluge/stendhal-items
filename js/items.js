@@ -218,8 +218,8 @@ const remote = {
 	 * @param {string} [mime="text/plain"]
 	 *   Target file MIME type.
 	 */
-	async fetchText(path, callback, branch="master", mime="text/plain") {
-		const url = repoPrefix + branch + "/" + path;
+	async fetchText(path, callback, mime="text/plain") {
+		const url = repoPrefix + main.branch + "/" + path;
 		try {
 			const res = await fetch(url, {
 				method: "GET",
@@ -282,6 +282,8 @@ const remote = {
 const main = {
 	/** Parsed Stendhal version. */
 	version: [],
+	/** Branch URL slug. */
+	branch: "master",
 	/** Item class. */
 	className: "weapons",
 	/** Attribute by which to sort. */
@@ -308,6 +310,15 @@ const main = {
 			target = target.split("?")[0] + "?" + query;
 		}
 		window.location.href = target;
+	},
+
+	/**
+	 * Sets branch URL slug.
+	 */
+	updateBranch() {
+		if (this.version.length > 0) {
+			this.branch = "VERSION_" + ("0"+this.version[0]).slice(-2) + "_RELEASE_" + this.version[1];
+		}
 	},
 
 	/**
@@ -372,7 +383,7 @@ const main = {
 			for (const prop in item) {
 				let value = item[prop];
 				if (prop === "image") {
-					const src = repoPrefix + "master/data/sprites/items/" + item["class"] + "/" + value + ".png";
+					const src = repoPrefix + this.branch + "/data/sprites/items/" + item["class"] + "/" + value + ".png";
 					const image = new Image();
 					image.src = src;
 
@@ -497,6 +508,7 @@ const parser = {
 			}
 			document.getElementById("title").innerText = "Stendhal " + versionString + " Items";
 		}
+		main.updateBranch();
 	},
 
 	/**
