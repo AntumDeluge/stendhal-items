@@ -428,7 +428,7 @@ const main = {
 
 		for (const item of items) {
 			let name = item["name"];
-			if (name === "l/r hand sword") {
+			if (name === "l/r hand swords") {
 				name = "l hand sword";
 			}
 			const link = "https://stendhalgame.org/item/" + item["class"] + "/" + name.replaceAll(" ", "_") + ".html";
@@ -644,7 +644,7 @@ const parser = {
 			}
 			if (lrSword) {
 				// update name since both detected
-				lrSword.name = "l/r hand sword";
+				lrSword.name = "l/r hand swords";
 				// atk & def are combined when used together
 				lrSword.atk += item.atk;
 				lrSword.def += item.def;
