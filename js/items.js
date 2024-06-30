@@ -353,7 +353,7 @@ const main = {
 		const weaponAttr = ["level", "rate", "atk", "dpt"];
 		const armorAttr = ["level", "def"];
 		const projAttr = ["level", "atk", "range"];
-		for (const attr of [...weaponAttr, ...armorAttr, ...projAttr]) {
+		for (const attr of ["value", ...weaponAttr, ...armorAttr, ...projAttr]) {
 			document.getElementById(attr).classList.add("hidden");
 		}
 		if (classes.isWeaponType(this.className)) {
@@ -371,6 +371,8 @@ const main = {
 			for (const attr of projAttr) {
 				document.getElementById(attr).classList.remove("hidden");
 			}
+		} else if (this.className === "money") {
+			document.getElementById("value").classList.remove("hidden");
 		}
 	},
 
@@ -624,11 +626,13 @@ const parser = {
 		for (let idx = 0; idx < items.length; idx++) {
 			const itemData = items[idx];
 			const typeInfo = itemData.getElementsByTagName("type")[0];
+			const valueInfo = itemData.getElementsByTagName("value")[0];
 			const attributes = itemData.getElementsByTagName("attributes")[0];
 			let item = {
 				name: itemData.getAttribute("name"),
 				class: typeInfo.getAttribute("class"),
 				image: typeInfo.getAttribute("subclass"),
+				value: valueInfo ? valueInfo.getAttribute("value") : "0",
 				level: this.numberAttribute(attributes, "min_level"),
 				rate: this.numberAttribute(attributes, "rate"),
 				atk: this.numberAttribute(attributes, "atk"),
