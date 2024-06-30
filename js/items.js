@@ -37,7 +37,7 @@ const main = {
 	// FIXME:
 	//   - need to wait for all item categories to load before sorting
 	//   - need to exclude unavailable items
-	getSorted: function() {
+	getSorted() {
 		const sortBy = this.data["sort"] || "name";
 		const data = this.data["weapons"];
 		const weapons = [];
@@ -63,7 +63,7 @@ const main = {
 		return weapons;
 	},
 
-	loadWeapons: function() {
+	loadWeapons() {
 		const weapons = this.getSorted();
 
 		for (const properties of weapons) {
