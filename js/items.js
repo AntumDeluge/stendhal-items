@@ -375,10 +375,31 @@ const main = {
 	},
 
 	/**
-	 * Retrieves sorted item list.
+	 * Retrieves an item definition & removes it from item list.
 	 *
-	 * FIXME:
-	 *   - need to exclude unavailable items
+	 * @param {string} name
+	 *   Item name.
+	 * @returns {object|undefined}
+	 *   Item definition or `undefined`.
+	 */
+	pop(name) {
+		const res = {idx: -1, item: undefined};
+		for (let idx = 0; idx < this.items.length; idx++) {
+			const item = this.items[idx];
+			if (item.name === name) {
+				res.idx = idx;
+				res.item = item;
+				break;
+			}
+		}
+		if (res.idx > -1) {
+			this.items.splice(res.idx, 1);
+		}
+		return res.item;
+	},
+
+	/**
+	 * Retrieves sorted item list.
 	 *
 	 * @returns {object[]}
 	 *   Parsed items.
@@ -406,7 +427,11 @@ const main = {
 		const items = this.getSorted();
 
 		for (const item of items) {
-			const link = "https://stendhalgame.org/item/" + item["class"] + "/" + item["name"].replaceAll(" ", "_") + ".html";
+			let name = item["name"];
+			if (name === "l/r hand sword") {
+				name = "l hand sword";
+			}
+			const link = "https://stendhalgame.org/item/" + item["class"] + "/" + name.replaceAll(" ", "_") + ".html";
 			const classList = ["cell"];
 			if (this.odd) {
 				classList.push("odd-cell");
@@ -600,7 +625,7 @@ const parser = {
 			const itemData = items[idx];
 			const typeInfo = itemData.getElementsByTagName("type")[0];
 			const attributes = itemData.getElementsByTagName("attributes")[0];
-			const item = {
+			let item = {
 				name: itemData.getAttribute("name"),
 				class: typeInfo.getAttribute("class"),
 				image: typeInfo.getAttribute("subclass"),
@@ -608,10 +633,26 @@ const parser = {
 				rate: this.numberAttribute(attributes, "rate"),
 				atk: this.numberAttribute(attributes, "atk"),
 				def: this.numberAttribute(attributes, "def"),
-				range: this.numberAttribute(attributes, "range"),
-				special: []
+				range: this.numberAttribute(attributes, "range")
 			};
+
+			let lrSword;
+			if (item.name === "l hand sword") {
+				lrSword = main.pop("r hand sword");
+			} else if (item.name === "r hand sword") {
+				lrSword = main.pop("l hand sword");
+			}
+			if (lrSword) {
+				// update name since both detected
+				lrSword.name = "l/r hand sword";
+				// atk & def are combined when used together
+				lrSword.atk += item.atk;
+				lrSword.def += item.def;
+				item = lrSword;
+			}
+
 			item.dpt = Math.round((item.atk / item.rate) * 100) / 100;
+			item.special = [];
 			const nature = this.stringAttribute(attributes, "damagetype");
 			if (typeof(nature) !== "undefined") {
 				item.special.push(nature);
