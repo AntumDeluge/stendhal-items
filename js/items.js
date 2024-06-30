@@ -291,6 +291,8 @@ const main = {
 	/** Loaded items data. */
 	items: [],
 
+	/** Property determining if unattainable items are visible. */
+	showUnattainable: false,
 	/** Property for alternating row background color. */
 	odd: false,
 
@@ -361,16 +363,16 @@ const main = {
 	displayItems() {
 		const items = this.getSorted();
 
-		for (const properties of items) {
-			const link = "https://stendhalgame.org/item/" + properties["class"] + "/" + properties["name"].replaceAll(" ", "_") + ".html";
+		for (const item of items) {
+			const link = "https://stendhalgame.org/item/" + item["class"] + "/" + item["name"].replaceAll(" ", "_") + ".html";
 			const classList = ["cell"];
 			if (this.odd) {
 				classList.push("odd-cell");
 			}
-			for (const prop in properties) {
-				let value = properties[prop];
+			for (const prop in item) {
+				let value = item[prop];
 				if (prop === "image") {
-					const src = repoPrefix + "master/data/sprites/items/" + properties["class"] + "/" + value + ".png";
+					const src = repoPrefix + "master/data/sprites/items/" + item["class"] + "/" + value + ".png";
 					const image = new Image();
 					image.src = src;
 
@@ -595,6 +597,15 @@ const parser = {
 				item.special.push("range=" + range);
 			}
 
+			const unattainable = itemData.getElementsByTagName("unattainable").length > 0;
+			if (unattainable) {
+				logger.debug("Unattainable: " + item.name);
+				if (!main.showUnattainable) {
+					// don't add to list
+					continue;
+				}
+			}
+
 			main.items.push(item);
 		}
 	}
@@ -616,9 +627,8 @@ document.addEventListener("DOMContentLoaded", () => {
 		const select = evt.target;
 		const className = select.options[select.selectedIndex].value;
 		// reload page to update for changes
-		const params = new URLSearchParams("class=" + className);
-		params.set("sort", ""+main.sortBy);
-		params.set("descending", ""+main.descending);
+		const params = new URLSearchParams(window.location.search);
+		params.set("class", className);
 		main.reload(params.toString());
 	});
 
@@ -643,5 +653,6 @@ document.addEventListener("DOMContentLoaded", () => {
 	const params = new URLSearchParams(window.location.search);
 	main.sortBy = params.get("sort") || main.sortBy;
 	main.descending = params.get("descending") === "true";
+	main.showUnattainable = params.get("unattainable") === "true";
 	populate();
 });
