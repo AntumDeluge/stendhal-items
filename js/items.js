@@ -685,7 +685,7 @@ const parser = {
 			}
 			if (!classes.isWeaponType(main.className) && !classes.isProjectileType(main.className)
 					&& item.atk !== 0) {
-				item.special.push("atk=" + item.atk);
+				item.special.push("atk (" + item.atk + ")");
 			}
 			if (!classes.isArmorType(main.className) && item.def !== 0) {
 				item.special.push("def (" + item.def + ")");
