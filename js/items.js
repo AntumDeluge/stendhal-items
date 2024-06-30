@@ -33,6 +33,7 @@ const classes = {
 	groups: {
 		weapons: ["axes", "clubs", "ranged", "swords", "whips"],
 		protective: ["armors", "boots", "cloaks", "helmets", "legs", "shields"],
+		projectiles: ["arrows", "missiles"]
 	},
 	/** Available class names parsed from config. */
 	available: [],
@@ -71,6 +72,30 @@ const classes = {
 	 */
 	isArmorType(className) {
 		return className === "protective" || this.groups.protective.indexOf(className) > -1;
+	},
+
+	/**
+	 * Checks if class is a ranged weapon type.
+	 *
+	 * @param {string} className
+	 *   Class or group name.
+	 * @returns {boolean}
+	 *   `true` if is a ranged type.
+	 */
+	isRangedType(className) {
+		return className === "ranged";
+	},
+
+	/**
+	 * Checks if class is a throwable projectile type.
+	 *
+	 * @param {string} className
+	 *   Class or group name.
+	 * @returns {boolean}
+	 *   `true` if is a projectile type.
+	 */
+	isProjectileType(className) {
+		return className === "projectiles" || this.groups.projectiles.indexOf(className) > -1;
 	}
 };
 
@@ -327,15 +352,23 @@ const main = {
 	updateColumns() {
 		const weaponAttr = ["level", "rate", "atk", "dpt"];
 		const armorAttr = ["level", "def"];
-		for (const attr of [...weaponAttr, ...armorAttr]) {
+		const projAttr = ["level", "atk", "range"];
+		for (const attr of [...weaponAttr, ...armorAttr, ...projAttr]) {
 			document.getElementById(attr).classList.add("hidden");
 		}
 		if (classes.isWeaponType(this.className)) {
 			for (const attr of weaponAttr) {
 				document.getElementById(attr).classList.remove("hidden");
 			}
+			if (classes.isRangedType(this.className)) {
+				document.getElementById("range").classList.remove("hidden");
+			}
 		} else if (classes.isArmorType(this.className)) {
 			for (const attr of armorAttr) {
+				document.getElementById(attr).classList.remove("hidden");
+			}
+		} else if (classes.isProjectileType(this.className)) {
+			for (const attr of projAttr) {
 				document.getElementById(attr).classList.remove("hidden");
 			}
 		}
@@ -575,6 +608,7 @@ const parser = {
 				rate: this.numberAttribute(attributes, "rate"),
 				atk: this.numberAttribute(attributes, "atk"),
 				def: this.numberAttribute(attributes, "def"),
+				range: this.numberAttribute(attributes, "range"),
 				special: []
 			};
 			item.dpt = Math.round((item.atk / item.rate) * 100) / 100;
@@ -596,15 +630,16 @@ const parser = {
 			if (lifesteal !== 0) {
 				item.special.push("lifesteal=" + lifesteal);
 			}
-			if (!classes.isWeaponType(main.className) && item.atk !== 0) {
+			if (!classes.isWeaponType(main.className) && !classes.isProjectileType(main.className)
+					&& item.atk !== 0) {
 				item.special.push("atk=" + item.atk);
 			}
 			if (!classes.isArmorType(main.className) && item.def !== 0) {
 				item.special.push("def=" + item.def);
 			}
-			const range = this.numberAttribute(attributes, "range");
-			if (range !== 0) {
-				item.special.push("range=" + range);
+			if (!classes.isRangedType(main.className) && !classes.isProjectileType(main.className)
+					&& item.range !== 0) {
+				item.special.push("range=" + item.range);
 			}
 
 			const unattainable = itemData.getElementsByTagName("unattainable").length > 0;
