@@ -1,5 +1,5 @@
 
-p#debug {
+#messages {
 	font-style: italic;
 }
 
@@ -8,9 +8,6 @@ p#debug {
 	margin-top: 1em;
 	border: 2px solid black;
 	clear: left;
-/*
-	padding: 5px;
-*/
 }
 
 .column-header {
