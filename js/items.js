@@ -121,6 +121,56 @@ const logger = {
 	}
 };
 
+/**
+ * Object to manage remote resources.
+ */
+const remote = {
+	/**
+	 * Fetches contents of a file from Stendhal Git repo.
+	 *
+	 * TODO: use cache
+	 *
+	 * @param {string} path
+	 *   Path to file relative to repo root.
+	 * @param {Function} callback
+	 *   Function called when data is ready.
+	 * @param {string} [branch="master"]
+	 *   Branch on which desired version is located.
+	 * @param {string} [mime="text/plain"]
+	 *   Target file MIME type.
+	 */
+	async fetchText(path, callback, branch="master", mime="text/plain") {
+		const url = repoPrefix + branch + "/" + path;
+		try {
+			const res = await fetch(url, {
+				method: "GET",
+				headers: {
+					"Content-Type": mime
+				}
+			});
+			const text = await res.text();
+			callback(text);
+		} catch (e) {
+			logger.error(e);
+		}
+	},
+
+	/**
+	 * Fetches current release version from properties file.
+	 */
+	async fetchVersion() {
+		this.fetchText("build.ant.properties", parseVersion);
+	},
+
+	/**
+	 * Fetches configured weapons classes.
+	 */
+	async fetchClasses() {
+		// TODO: use release branch
+		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
+	}
+};
+
 const main = {
 	// fetched data
 	data: {},
@@ -204,56 +254,6 @@ const main = {
 			}
 			this.odd = !this.odd;
 		}
-	}
-};
-
-/**
- * Object to manage remote resources.
- */
-const remote = {
-	/**
-	 * Fetches contents of a file from Stendhal Git repo.
-	 *
-	 * TODO: use cache
-	 *
-	 * @param {string} path
-	 *   Path to file relative to repo root.
-	 * @param {Function} callback
-	 *   Function called when data is ready.
-	 * @param {string} [branch="master"]
-	 *   Branch on which desired version is located.
-	 * @param {string} [mime="text/plain"]
-	 *   Target file MIME type.
-	 */
-	async fetchText(path, callback, branch="master", mime="text/plain") {
-		const url = repoPrefix + branch + "/" + path;
-		try {
-			const res = await fetch(url, {
-				method: "GET",
-				headers: {
-					"Content-Type": mime
-				}
-			});
-			const text = await res.text();
-			callback(text);
-		} catch (e) {
-			logger.error(e);
-		}
-	},
-
-	/**
-	 * Fetches current release version from properties file.
-	 */
-	async fetchVersion() {
-		this.fetchText("build.ant.properties", parseVersion);
-	},
-
-	/**
-	 * Fetches configured weapons classes.
-	 */
-	async fetchClasses() {
-		// TODO: use release branch
-		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
 	}
 };
 
