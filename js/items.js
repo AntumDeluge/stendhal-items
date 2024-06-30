@@ -128,8 +128,6 @@ const remote = {
 	/**
 	 * Fetches contents of a file from Stendhal Git repo.
 	 *
-	 * TODO: use cache
-	 *
 	 * @param {string} path
 	 *   Path to file relative to repo root.
 	 * @param {Function} callback
@@ -166,7 +164,6 @@ const remote = {
 	 * Fetches configured weapons classes.
 	 */
 	async fetchClasses() {
-		// TODO: use release branch
 		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
 	}
 };
@@ -344,7 +341,6 @@ async function fetchWeaponsForClass() {
 		return;
 	}
 
-	// TODO: use release branch
 	if (className !== "all") {
 		remote.fetchText("data/conf/items/" + className + ".xml", parseWeapons);
 		return;

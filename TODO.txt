@@ -4,3 +4,5 @@ TODO:
 - hide unattainable items
 - add special condition for l/r hand swords
 - don't sort until all items are loaded
+- prefer browser cache when loading data
+- fetch data from release branch
