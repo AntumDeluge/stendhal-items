@@ -690,6 +690,23 @@ const parser = {
 					&& item.range !== 0) {
 				item.special.push("range (" + item.range + ")");
 			}
+			const consumeAmount = this.numberAttribute(attributes, "amount");
+			if (consumeAmount !== 0) {
+				const cures = this.stringAttribute(attributes, "immunization");
+				if (cures) {
+					item.special.push("cure (" + cures + ")");
+					item.special.push("immunity duration (" + consumeAmount + ")");
+				} else {
+					const regenType = consumeAmount > 0 ? "heal" : "hurt";
+					const regen = this.numberAttribute(attributes, "regen");
+					const frequency = this.numberAttribute(attributes, "frequency");
+					item.special.push(regenType + " (" + consumeAmount + ")");
+					if (frequency !== 1 || regen !== consumeAmount) {
+						item.special.push("regen (" + regen + ")");
+						item.special.push("frequency (" + frequency + ")");
+					}
+				}
+			}
 
 			const unattainable = itemData.getElementsByTagName("unattainable").length > 0;
 			if (unattainable) {
