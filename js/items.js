@@ -47,6 +47,30 @@ const classes = {
 	 */
 	getGroupNames() {
 		return Object.keys(this.groups);
+	},
+
+	/**
+	 * Checks if class is a weapon equipment type.
+	 *
+	 * @param {string} className
+	 *   Class or group name.
+	 * @returns {boolean}
+	 *   `true` if is a weapon type.
+	 */
+	isWeaponType(className) {
+		return className === "weapons" || this.groups.weapons.indexOf(className) > -1;
+	},
+
+	/**
+	 * Checks if class is an armor equipment type.
+	 *
+	 * @param {string} className
+	 *   Class or group name.
+	 * @returns {boolean}
+	 *   `true` if is a armor type.
+	 */
+	isArmorType(className) {
+		return className === "protective" || this.groups.protective.indexOf(className) > -1;
 	}
 };
 
@@ -285,6 +309,28 @@ const main = {
 	},
 
 	/**
+	 * Updates visible columns for class type.
+	 */
+	updateColumns() {
+		const weaponAttr = ["rate", "atk", "dpt"];
+		const armorAttr = ["def"];
+		const equipAttr = ["level", ...weaponAttr, ...armorAttr];
+		for (const attr of equipAttr) {
+			const col = document.getElementById(attr);
+			col.classList.add("hidden");
+		}
+		if (classes.isWeaponType(this.className)) {
+			for (const attr of weaponAttr) {
+				document.getElementById(attr).classList.remove("hidden");
+			}
+		} else if (classes.isArmorType(this.className)) {
+			for (const attr of armorAttr) {
+				document.getElementById(attr).classList.remove("hidden");
+			}
+		}
+	},
+
+	/**
 	 * Retrieves sorted item list.
 	 *
 	 * FIXME:
@@ -377,6 +423,7 @@ const main = {
 				break;
 			}
 		}
+		this.updateColumns();
 	}
 };
 
@@ -515,6 +562,7 @@ const parser = {
 				level: this.numberAttribute(attributes, "min_level"),
 				rate: this.numberAttribute(attributes, "rate"),
 				atk: this.numberAttribute(attributes, "atk"),
+				def: this.numberAttribute(attributes, "def"),
 				special: []
 			};
 			item.dpt = Math.round((item.atk / item.rate) * 100) / 100;
@@ -536,9 +584,11 @@ const parser = {
 			if (lifesteal !== 0) {
 				item.special.push("lifesteal=" + lifesteal);
 			}
-			const def = this.numberAttribute(attributes, "def");
-			if (def !== 0) {
-				item.special.push("def=" + def);
+			if (!classes.isWeaponType(main.className) && item.atk !== 0) {
+				item.special.push("atk=" + item.atk);
+			}
+			if (!classes.isArmorType(main.className) && item.def !== 0) {
+				item.special.push("def=" + item.def);
 			}
 			const range = this.numberAttribute(attributes, "range");
 			if (range !== 0) {
@@ -572,7 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
 		main.reload(params.toString());
 	});
 
-	for (const col of ["name", "class", "level", "rate", "atk", "dpt", "special"]) {
+	for (const col of ["name", "class", "level", "rate", "atk", "dpt", "def", "special"]) {
 		const header = document.getElementById(col).firstElementChild;
 		header.classList.add("sortable");
 		header.addEventListener("click", (evt) => {
