@@ -189,17 +189,45 @@ const remote = {
 	},
 
 	/**
-	 * Fetches current release version from properties file.
+	 * Fetches & loads current release version from properties file.
 	 */
 	async fetchVersion() {
 		this.fetchText("build.ant.properties", parser.getVersion);
 	},
 
 	/**
-	 * Fetches configured weapons classes.
+	 * Fetches & loads configured weapons classes.
 	 */
 	async fetchClasses() {
 		this.fetchText("data/conf/items.xml", parser.getClasses); //, "master", "application/xml");
+	},
+
+	/**
+	 * Fetches & loads weapons info for selected class.
+	 */
+	async fetchWeaponsForClass() {
+		let className = main.data["class"];
+		if (typeof(className) === "undefined") {
+			logger.error("No class selected");
+			return;
+		}
+
+		if (className !== "all") {
+			remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+				parser.getWeapons(content);
+			});
+			return;
+		}
+
+		const select = document.getElementById("classes");
+		const options = select.options;
+		// skip first index since "all" is not an actual weapon class
+		for (let idx = 1; idx < options.length; idx++) {
+			className = options[idx].value;
+			remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+				parser.getWeapons(content);
+			});
+		}
 	}
 };
 
@@ -463,34 +491,8 @@ const parser = {
 	}
 };
 
-async function fetchWeaponsForClass() {
-	let className = main.data["class"];
-	if (typeof(className) === "undefined") {
-		logger.error("No class selected");
-		return;
-	}
-
-	if (className !== "all") {
-		remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
-			parser.getWeapons(content);
-		});
-		return;
-	}
-
-	const select = document.getElementById("classes");
-	const options = select.options;
-	// skip first index since "all" is not an actual weapon class
-	for (let idx = 1; idx < options.length; idx++) {
-		className = options[idx].value;
-		remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
-			parser.getWeapons(content);
-		});
-	}
-}
-
-
 function onClassSelected() {
-	fetchWeaponsForClass();
+	remote.fetchWeaponsForClass();
 }
 
 function selectClass(className, sortBy=undefined) {
