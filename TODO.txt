@@ -1,0 +1,6 @@
+
+TODO:
+- show all items
+- hide unattainable items
+- add special condition for l/r hand swords
+- don't sort until all items are loaded
