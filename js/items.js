@@ -192,27 +192,27 @@ const remote = {
 	 * Fetches & loads current release version from properties file.
 	 */
 	async fetchVersion() {
-		this.fetchText("build.ant.properties", parser.getVersion);
+		await this.fetchText("build.ant.properties", parser.getVersion);
 	},
 
 	/**
-	 * Fetches & loads configured weapons classes.
+	 * Fetches & loads configured items classes.
 	 */
 	async fetchClasses() {
-		this.fetchText("data/conf/items.xml", parser.getClasses); //, "master", "application/xml");
+		await this.fetchText("data/conf/items.xml", parser.getClasses); //, "master", "application/xml");
 	},
 
 	/**
-	 * Fetches & loads weapons info for selected class.
+	 * Fetches & loads items info for selected class.
 	 */
-	async fetchWeaponsForClass() {
+	async fetchItemsForClass() {
 		if (typeof(main.className) !== "string" || main.className.length === 0) {
 			logger.error("No class selected");
 			return;
 		}
 
 		if (main.className !== "all") {
-			remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
+			await remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
 				parser.getWeapons(content);
 			});
 			return;
@@ -222,7 +222,7 @@ const remote = {
 		const options = select.options;
 		// skip first index since "all" is not an actual weapon class
 		for (let idx = 1; idx < options.length; idx++) {
-			remote.fetchText("data/conf/items/" + options[idx].value + ".xml", (content) => {
+			await remote.fetchText("data/conf/items/" + options[idx].value + ".xml", (content) => {
 				parser.getWeapons(content);
 			});
 		}
@@ -242,7 +242,7 @@ const main = {
 	/** Sorting order. */
 	descending: false,
 	/** Items data. */
-	items: {},
+	items: [],
 
 	/** Property for alternating row background color. */
 	odd: false,
@@ -262,17 +262,10 @@ const main = {
 	},
 
 	// FIXME:
-	//   - need to wait for all item categories to load before sorting
 	//   - need to exclude unavailable items
 	getSorted() {
-		const weapons = [];
-		for (const name in this.items) {
-			const def = this.items[name];
-			def["name"] = name;
-			weapons.push(def);
-		}
-
-		weapons.sort((objA, objB) => {
+		const items = [...this.items];
+		items.sort((objA, objB) => {
 			const valueA = objA[this.sortBy];
 			const valueB = objB[this.sortBy];
 			if (valueA < valueB) {
@@ -283,8 +276,7 @@ const main = {
 			}
 			return 0;
 		});
-
-		return weapons;
+		return items;
 	},
 
 	/**
@@ -356,7 +348,6 @@ const main = {
 				break;
 			}
 		}
-		remote.fetchWeaponsForClass();
 	}
 };
 
@@ -471,65 +462,69 @@ const parser = {
 	},
 
 	/**
-	 * Parses & loads weapons info from fetched content.
+	 * Parses & loads items info from fetched content.
 	 *
 	 * @param {string} content
 	 *   Fetched items XML data.
 	 */
 	getWeapons(content) {
-		const weapons = {};
-
 		const xml = new DOMParser().parseFromString(content, "text/xml");
 		const items = xml.getElementsByTagName("item");
 		for (let idx = 0; idx < items.length; idx++) {
-			const item = items[idx];
-			const name = item.getAttribute("name");
-
-			const typeInfo = item.getElementsByTagName("type")[0];
-			const properties = {
+			const itemData = items[idx];
+			const typeInfo = itemData.getElementsByTagName("type")[0];
+			const attributes = itemData.getElementsByTagName("attributes")[0];
+			const item = {
+				name: itemData.getAttribute("name"),
 				class: typeInfo.getAttribute("class"),
-				image: typeInfo.getAttribute("subclass")
+				image: typeInfo.getAttribute("subclass"),
+				level: this.numberAttribute(attributes, "min_level"),
+				rate: this.numberAttribute(attributes, "rate"),
+				atk: this.numberAttribute(attributes, "atk"),
+				special: []
 			};
-			const attributes = item.getElementsByTagName("attributes")[0];
-			properties.level = this.numberAttribute(attributes, "min_level");
-			properties.rate = this.numberAttribute(attributes, "rate");
-			properties.atk = this.numberAttribute(attributes, "atk");
-			properties.dpt = Math.round((properties.atk / properties.rate) * 100) / 100;
-			properties.special = [];
+			item.dpt = Math.round((item.atk / item.rate) * 100) / 100;
 			const nature = this.stringAttribute(attributes, "damagetype");
 			if (typeof(nature) !== "undefined") {
-				properties.special.push(nature);
+				item.special.push(nature);
 			}
 			const statusAttack = this.stringAttribute(attributes, "statusattack");
 			if (typeof(statusAttack) !== "undefined") {
 				if (statusAttack.includes("poison") || statusAttack.includes("venom")) {
-					properties.special.push("poison");
+					item.special.push("poison");
 				} else if (statusAttack.includes(",")) {
-					properties.special.push(statusAttack.split(",")[1]);
+					item.special.push(statusAttack.split(",")[1]);
 				} else {
-					properties.special.push(statusAttack);
+					item.special.push(statusAttack);
 				}
 			}
 			const lifesteal = this.numberAttribute(attributes, "lifesteal");
 			if (lifesteal !== 0) {
-				properties.special.push("lifesteal=" + lifesteal);
+				item.special.push("lifesteal=" + lifesteal);
 			}
 			const def = this.numberAttribute(attributes, "def");
 			if (def !== 0) {
-				properties.special.push("def=" + def);
+				item.special.push("def=" + def);
 			}
 			const range = this.numberAttribute(attributes, "range");
 			if (range !== 0) {
-				properties.special.push("range=" + range);
+				item.special.push("range=" + range);
 			}
 
-			weapons[name] = properties;
+			main.items.push(item);
 		}
-
-		main.items = weapons;
-		main.displayItems();
 	}
 };
+
+/**
+ * Executes methods to populate item list.
+ */
+async function populate() {
+	await remote.fetchVersion();
+	await remote.fetchClasses();
+	await remote.fetchItemsForClass();
+	main.displayItems();
+}
 
 // entry point
 document.addEventListener("DOMContentLoaded", () => {
@@ -564,6 +559,5 @@ document.addEventListener("DOMContentLoaded", () => {
 	const params = new URLSearchParams(window.location.search);
 	main.sortBy = params.get("sort") || main.sortBy;
 	main.descending = params.get("descending") === "true";
-	remote.fetchVersion();
-	remote.fetchClasses();
+	populate();
 });
