@@ -314,6 +314,27 @@ const main = {
 			}
 			this.odd = !this.odd;
 		}
+	},
+
+	/**
+	 * Sets selected item class.
+	 *
+	 * @param {string} name
+	 *   Class name.
+	 */
+	selectClass(name) {
+		const prevSelected = this.data["class"];
+		const select = document.getElementById("classes");
+		for (let idx = 0; idx < select.options.length; idx++) {
+			if (select.options[idx].value === name) {
+				this.data["class"] = name;
+				select.selectedIndex = idx;
+				break;
+			}
+		}
+		if (this.data["class"] !== prevSelected) {
+			remote.fetchWeaponsForClass();
+		}
 	}
 };
 
@@ -426,7 +447,7 @@ const parser = {
 			// default to show all weapons
 			className = "all";
 		}
-		selectClass(className);
+		main.selectClass(className);
 	},
 
 	/**
@@ -490,21 +511,6 @@ const parser = {
 		main.loadWeapons();
 	}
 };
-
-function selectClass(className, sortBy=undefined) {
-	const prevSelected = main.data["class"];
-	const select = document.getElementById("classes");
-	for (let idx = 0; idx < select.options.length; idx++) {
-		if (select.options[idx].value === className) {
-			main.data["class"] = className;
-			select.selectedIndex = idx;
-			break;
-		}
-	}
-	if (main.data["class"] !== prevSelected) {
-		remote.fetchWeaponsForClass();
-	}
-}
 
 main.populate = function() {
 	const params = new URLSearchParams(window.location.search);
