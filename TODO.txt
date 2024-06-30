@@ -1,6 +1,5 @@
 
 TODO:
-- show all items
 - hide unattainable items
 - add special condition for l/r hand swords
 - prefer browser cache when loading data

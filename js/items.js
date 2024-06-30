@@ -25,8 +25,30 @@
 // Stendhal's repo URL
 const repoPrefix = "https://raw.githubusercontent.com/arianne/stendhal/";
 
-// item classes that will be parsed
-const includes = ["all", "axes", "clubs", "ranged", "swords", "whips"];
+/**
+ * Items classes.
+ */
+const classes = {
+	/** Items grouping. */
+	groups: {
+		weapons: ["axes", "clubs", "ranged", "swords", "whips"],
+		protective: ["armors", "boots", "cloaks", "helmets", "legs", "shields"],
+	},
+	/** Available class names parsed from config. */
+	available: [],
+	/** Item classes to ignore. */
+	excludes: ["dummy_weapons"],
+
+	/**
+	 * Retrieves selectable items groups names.
+	 *
+	 * @returns {string[]}
+	 *   Items groups.
+	 */
+	getGroupNames() {
+		return Object.keys(this.groups);
+	}
+};
 
 /**
  * Object for displaying messages.
@@ -192,14 +214,18 @@ const remote = {
 	 * Fetches & loads current release version from properties file.
 	 */
 	async fetchVersion() {
-		await this.fetchText("build.ant.properties", parser.getVersion);
+		await this.fetchText("build.ant.properties", (content) => {
+			parser.parseVersion(content);
+		});
 	},
 
 	/**
 	 * Fetches & loads configured items classes.
 	 */
 	async fetchClasses() {
-		await this.fetchText("data/conf/items.xml", parser.getClasses); //, "master", "application/xml");
+		await this.fetchText("data/conf/items.xml", (content) => {
+			parser.parseClasses(content);
+		});
 	},
 
 	/**
@@ -211,21 +237,18 @@ const remote = {
 			return;
 		}
 
-		if (main.className !== "all") {
-			await remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
-				parser.getItems(content);
-			});
+		if (classes.getGroupNames().indexOf(main.className) > -1) {
+			for (const className of classes.groups[main.className]) {
+				await remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+					parser.parseItems(content);
+				});
+			}
 			return;
 		}
 
-		const select = document.getElementById("classes");
-		const options = select.options;
-		// skip first index since "all" is not an actual item class
-		for (let idx = 1; idx < options.length; idx++) {
-			await remote.fetchText("data/conf/items/" + options[idx].value + ".xml", (content) => {
-				parser.getItems(content);
-			});
-		}
+		await remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
+			parser.parseItems(content);
+		});
 	}
 };
 
@@ -236,12 +259,12 @@ const main = {
 	/** Parsed Stendhal version. */
 	version: [],
 	/** Item class. */
-	className: "all",
+	className: "weapons",
 	/** Attribute by which to sort. */
 	sortBy: "name",
 	/** Sorting order. */
 	descending: false,
-	/** Items data. */
+	/** Loaded items data. */
 	items: [],
 
 	/** Property for alternating row background color. */
@@ -261,8 +284,15 @@ const main = {
 		window.location.href = target;
 	},
 
-	// FIXME:
-	//   - need to exclude unavailable items
+	/**
+	 * Retrieves sorted item list.
+	 *
+	 * FIXME:
+	 *   - need to exclude unavailable items
+	 *
+	 * @returns {object[]}
+	 *   Parsed items.
+	 */
 	getSorted() {
 		const items = [...this.items];
 		items.sort((objA, objB) => {
@@ -339,7 +369,6 @@ const main = {
 	 *   Class name.
 	 */
 	selectClass(name) {
-		const prevSelected = this.className;
 		const select = document.getElementById("classes");
 		for (let idx = 0; idx < select.options.length; idx++) {
 			if (select.options[idx].value === name) {
@@ -399,7 +428,7 @@ const parser = {
 	 * @param {string} content
 	 *   Properties file text contents.
 	 */
-	getVersion(content) {
+	parseVersion(content) {
 		content = util.normalize(content);
 		for (const li of content.split("\n")) {
 			if (li.startsWith("version\.old")) {
@@ -427,18 +456,23 @@ const parser = {
 	 * @param {string} content
 	 *   Items XML config data.
 	 */
-	getClasses(content) {
+	parseClasses(content) {
 		content = util.normalize(content);
 
-		const classNames = [];
 		for (let li of content.split("\n")) {
 			li = li.replace(/^\t/, "");
 			if (li.startsWith("<group uri=\"items/")) {
 				const className = li.replace(/<group uri="items\//, "").replace(/\.xml.*$/, "");
-				if (includes.indexOf(className) > -1) {
-					classNames.push(className);
+				if (classes.excludes.indexOf(className) > -1) {
+					continue;
 				}
+				classes.available.push(className);
 			}
+		}
+
+		const classNames = classes.getGroupNames();
+		for (const className of classes.available) {
+			classNames.push(className);
 		}
 
 		const select = document.getElementById("classes");
@@ -451,12 +485,12 @@ const parser = {
 
 		const params = new URLSearchParams(window.location.search);
 		let className = params.get("class");
-		if (includes.indexOf(className) < 0) {
+		if (classNames.indexOf(className) < 0) {
 			if (typeof(className) === "string") {
 				logger.error("Unknown item class: " + className);
 			}
-			// default to show all items
-			className = "all";
+			// default to show weapons
+			className = "weapons";
 		}
 		main.selectClass(className);
 	},
@@ -467,7 +501,7 @@ const parser = {
 	 * @param {string} content
 	 *   Fetched items XML data.
 	 */
-	getItems(content) {
+	parseItems(content) {
 		const xml = new DOMParser().parseFromString(content, "text/xml");
 		const items = xml.getElementsByTagName("item");
 		for (let idx = 0; idx < items.length; idx++) {
