@@ -115,6 +115,57 @@ const main = {
 };
 
 /**
+ * Object to manage remote resources.
+ */
+const remote = {
+	/**
+	 * Fetches contents of a file from Stendhal Git repo.
+	 *
+	 * TODO: use cache
+	 *
+	 * @param {string} path
+	 *   Path to file relative to repo root.
+	 * @param {Function} callback
+	 *   Function called when data is ready.
+	 * @param {string} [branch="master"]
+	 *   Branch on which desired version is located.
+	 * @param {string} [mime="text/plain"]
+	 *   Target file MIME type.
+	 */
+	async fetchText(path, callback, branch="master", mime="text/plain") {
+		const url = repoPrefix + branch + "/" + path;
+		try {
+			const res = await fetch(url, {
+				method: "GET",
+				headers: {
+					"Content-Type": mime
+				}
+			});
+			const text = await res.text();
+			callback(text);
+		} catch (e) {
+			console.error(e);
+			debug("error", e);
+		}
+	},
+
+	/**
+	 * Fetches current release version from properties file.
+	 */
+	async fetchVersion() {
+		this.fetchText("build.ant.properties", parseVersion);
+	},
+
+	/**
+	 * Fetches configured weapons classes.
+	 */
+	async fetchClasses() {
+		// TODO: use release branch
+		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
+	}
+};
+
+/**
  * Shows a message for debugging.
  *
  * @param {string} level
@@ -142,37 +193,6 @@ function debug(level, msg) {
 	const element = document.getElementById("debug");
 	element.style.color = color;
 	element.innerText = level.toUpperCase() + ": " + msg;
-}
-
-/**
- * Fetches contents of a file from Stendhal Git repo.
- *
- * TODO: use cache
- *
- * @param {string} path
- *   Path to file relative to repo root.
- * @param {Function} callback
- *   Function called when data is ready.
- * @param {string} [branch="master"]
- *   Branch on which desired version is located.
- * @param {string} [mime="text/plain"]
- *   Target file MIME type.
- */
-async function fetchText(path, callback, branch="master", mime="text/plain") {
-	const url = repoPrefix + branch + "/" + path;
-	try {
-		const res = await fetch(url, {
-			method: "GET",
-			headers: {
-				"Content-Type": mime
-			}
-		});
-		const text = await res.text();
-		callback(text);
-	} catch (e) {
-		console.error(e);
-		debug("error", e);
-	}
 }
 
 function parseNumberDefault(value, def) {
@@ -266,7 +286,7 @@ async function fetchWeaponsForClass() {
 
 	// TODO: use release branch
 	if (className !== "all") {
-		fetchText("data/conf/items/" + className + ".xml", parseWeapons);
+		remote.fetchText("data/conf/items/" + className + ".xml", parseWeapons);
 		return;
 	}
 
@@ -275,7 +295,7 @@ async function fetchWeaponsForClass() {
 	// skip first index since "all" is not an actual weapon class
 	for (let idx = 1; idx < options.length; idx++) {
 		className = options[idx].value;
-		fetchText("data/conf/items/" + className + ".xml", parseWeapons);
+		remote.fetchText("data/conf/items/" + className + ".xml", parseWeapons);
 	}
 }
 
@@ -382,21 +402,6 @@ function parseClasses(content) {
 	selectClass(className);
 }
 
-/**
- * Fetches current release version from properties file.
- */
-async function fetchVersion() {
-	fetchText("build.ant.properties", parseVersion);
-}
-
-/**
- * Fetches configured weapons classes.
- */
-async function fetchClasses() {
-	// TODO: use release branch
-	fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
-}
-
 main.populate = function() {
 	const params = new URLSearchParams(window.location.search);
 	const sortBy = params.get("sort");
@@ -404,8 +409,8 @@ main.populate = function() {
 		main.data["sort"] = sortBy;
 		main.data["descending"] = params.get("descending") === "true";
 	}
-	fetchVersion();
-	fetchClasses();
+	remote.fetchVersion();
+	remote.fetchClasses();
 };
 
 main.reload = function(query=undefined) {
