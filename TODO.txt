@@ -2,4 +2,3 @@
 TODO:
 - prefer browser cache when loading data
 - reload & sort items without reloading page
-- allow setting version/branch manually

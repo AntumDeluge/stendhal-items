@@ -264,7 +264,7 @@ const remote = {
 	 */
 	async fetchVersion() {
 		await this.fetchText("build.ant.properties", (content) => {
-			parser.parseVersion(content);
+			parser.parseVersionString(content);
 		});
 	},
 
@@ -541,31 +541,28 @@ const parser = {
 	},
 
 	/**
-	 * Parses version from fetched properties file.
+	 * Parses version string from fetched properties file.
 	 *
 	 * @param {string} content
 	 *   Properties file text contents.
 	 */
-	parseVersion(content) {
+	parseVersionString(content) {
 		content = util.normalize(content);
 		for (const li of content.split("\n")) {
 			if (li.startsWith("version\.old")) {
-				for (const v of li.split("=")[1].trim().split(".")) {
-					main.version.push(Number.parseInt(v, 10));
-				}
-				break;
+				main.currentVersionString = li.split("=")[1].trim();
 			}
 		}
-		if (main.version.length > 0) {
-			let versionString = "";
-			for (const v of main.version) {
-				if (versionString.length > 0) {
-					versionString += ".";
-				}
-				versionString += v;
-			}
-			document.getElementById("title").innerText = "Stendhal " + versionString + " Items";
+	},
+
+	/**
+	 * Parses version from version string.
+	 */
+	parseVersion() {
+		for (const v of main.versionString.split(".")) {
+			main.version.push(Number.parseInt(v, 10));
 		}
+		document.getElementById("version").value = main.versionString;
 		main.updateBranch();
 	},
 
@@ -731,9 +728,34 @@ const parser = {
  */
 async function populate() {
 	await remote.fetchVersion();
+	document.getElementById("current-version").innerText = "(current version: " + main.currentVersionString + ")";
+	if (!main.versionString) {
+		main.versionString = main.currentVersionString;
+	}
+	parser.parseVersion();
 	await remote.fetchClasses();
 	await remote.fetchItemsForClass();
 	main.displayItems();
+}
+
+/**
+ * Reloads page with value from "version" field.
+ */
+function onSetVersion() {
+	const versionString = document.getElementById("version").value.trim();
+	for (const vs of versionString.split(".")) {
+		if (!(/^\d+$/.test(vs))) {
+			logger.error("Invalid version: " + versionString);
+			return;
+		}
+	}
+	if (versionString > main.currentVersionString) {
+		logger.error("Invalid version: " + versionString);
+		return;
+	}
+	const params = new URLSearchParams(window.location.search);
+	params.set("version", versionString);
+	main.reload(params.toString());
 }
 
 // entry point
@@ -745,6 +767,15 @@ document.addEventListener("DOMContentLoaded", () => {
 		const params = new URLSearchParams(window.location.search);
 		params.set("class", className);
 		main.reload(params.toString());
+	});
+
+	document.getElementById("version").addEventListener("keydown", (evt) => {
+		if (evt.key === "Enter") {
+			onSetVersion();
+		}
+	});
+	document.getElementById("version-button").addEventListener("click", (evt) => {
+		onSetVersion();
 	});
 
 	for (const col of ["name", "class", "level", "rate", "atk", "dpt", "def", "special"]) {
@@ -766,6 +797,7 @@ document.addEventListener("DOMContentLoaded", () => {
 	}
 
 	const params = new URLSearchParams(window.location.search);
+	main.versionString = params.get("version");
 	main.sortBy = params.get("sort") || main.sortBy;
 	main.descending = params.get("descending") === "true";
 	main.showUnattainable = params.get("unattainable") === "true";
