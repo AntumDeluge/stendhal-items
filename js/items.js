@@ -325,12 +325,10 @@ const main = {
 	 * Updates visible columns for class type.
 	 */
 	updateColumns() {
-		const weaponAttr = ["rate", "atk", "dpt"];
-		const armorAttr = ["def"];
-		const equipAttr = ["level", ...weaponAttr, ...armorAttr];
-		for (const attr of equipAttr) {
-			const col = document.getElementById(attr);
-			col.classList.add("hidden");
+		const weaponAttr = ["level", "rate", "atk", "dpt"];
+		const armorAttr = ["level", "def"];
+		for (const attr of [...weaponAttr, ...armorAttr]) {
+			document.getElementById(attr).classList.add("hidden");
 		}
 		if (classes.isWeaponType(this.className)) {
 			for (const attr of weaponAttr) {
