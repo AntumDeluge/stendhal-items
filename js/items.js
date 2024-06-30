@@ -122,6 +122,41 @@ const logger = {
 };
 
 /**
+ * Helper utility function.
+ */
+const util = {
+	/**
+	 * Converts a value to number.
+	 *
+	 * @param {string} value
+	 *   String value.
+	 * @param {number} def
+	 *   Default value if number cannot be parsed.
+	 * @returns {number}
+	 *   Parsed number value.
+	 */
+	parseNumberDefault(value, def) {
+		const res = Number.parseFloat(value);
+		if (Number.isNaN(res) || !Number.isFinite(res)) {
+			return def;
+		}
+		return res;
+	},
+
+	/**
+	 * Ensures LF line endings in content.
+	 *
+	 * @param {string} content
+	 *   Fetched text content.
+	 * @returns {string}
+	 *   Normalized text content.
+	 */
+	normalize(content) {
+		return content.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
+	}
+};
+
+/**
  * Object to manage remote resources.
  */
 const remote = {
@@ -254,21 +289,13 @@ const main = {
 	}
 };
 
-function parseNumberDefault(value, def) {
-	const res = Number.parseFloat(value);
-	if (Number.isNaN(res) || !Number.isFinite(res)) {
-		return def;
-	}
-	return res;
-}
-
 function parseAttributeValue(attributes, tag, def=0) {
 	const element = attributes.getElementsByTagName(tag)[0];
 	if (!element) {
 		return def;
 	}
 	const value = element.getAttribute("value");
-	return parseNumberDefault(value, def);
+	return util.parseNumberDefault(value, def);
 }
 
 function parseAttributeString(attributes, tag) {
@@ -376,25 +403,13 @@ function selectClass(className, sortBy=undefined) {
 }
 
 /**
- * Ensures using LF line endings.
- *
- * @param {string} content
- *   Fetched text content.
- * @returns {string}
- *   Normalized text content.
- */
-function normalize(content) {
-	return content.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
-}
-
-/**
  * Parses version from fetched properties file.
  *
  * @param {string} content
  *   Properties file text contents.
  */
 function parseVersion(content) {
-	content = normalize(content);
+	content = util.normalize(content);
 	for (const li of content.split("\n")) {
 		if (li.startsWith("version\.old")) {
 			main.data["version"] = [];
@@ -423,7 +438,7 @@ function parseVersion(content) {
  *   Weapons XML config data.
  */
 function parseClasses(content) {
-	content = normalize(content);
+	content = util.normalize(content);
 
 	const classNames = [];
 	for (let li of content.split("\n")) {
