@@ -4,4 +4,3 @@ TODO:
 - reload & sort items without reloading page
 - allow setting version/branch manually
 - show consumables properties
-- show special attributes for protective equipment

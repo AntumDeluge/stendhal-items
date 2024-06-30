@@ -667,20 +667,28 @@ const parser = {
 					item.special.push(statusAttack);
 				}
 			}
-			const lifesteal = this.numberAttribute(attributes, "lifesteal");
+			for (const sus of itemData.getElementsByTagName("susceptibility")) {
+				let value = Math.round(util.parseNumberDefault(sus.getAttribute("value"), 1) * 1000) / 10;
+				if (value !== 100) {
+					// susceptibilities are inverse
+					value = 100 - value;
+					item.special.push(sus.getAttribute("type") + " (" + (value > 0 ? "+" : "") + value + "%)");
+				}
+			}
+			const lifesteal = this.numberAttribute(attributes, "lifesteal") * 100;
 			if (lifesteal !== 0) {
-				item.special.push("lifesteal=" + lifesteal);
+				item.special.push("lifesteal (" + (lifesteal > 0 ? "+" : "") + lifesteal + "%)");
 			}
 			if (!classes.isWeaponType(main.className) && !classes.isProjectileType(main.className)
 					&& item.atk !== 0) {
 				item.special.push("atk=" + item.atk);
 			}
 			if (!classes.isArmorType(main.className) && item.def !== 0) {
-				item.special.push("def=" + item.def);
+				item.special.push("def (" + item.def + ")");
 			}
 			if (!classes.isRangedType(main.className) && !classes.isProjectileType(main.className)
 					&& item.range !== 0) {
-				item.special.push("range=" + item.range);
+				item.special.push("range (" + item.range + ")");
 			}
 
 			const unattainable = itemData.getElementsByTagName("unattainable").length > 0;
