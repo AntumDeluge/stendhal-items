@@ -28,6 +28,99 @@ const repoPrefix = "https://raw.githubusercontent.com/arianne/stendhal/";
 // weapon classes that will be parsed
 const includes = ["all", "axes", "clubs", "ranged", "swords", "whips"];
 
+/**
+ * Object for displaying messages.
+ */
+const logger = {
+	/** Element to display message in browser window. */
+	container: document.getElementById("messages"),
+
+	/**
+	 * Adds a line of text to displayed message in browser window.
+	 *
+	 * @param {string} msg
+	 *   Message text.
+	 * @param {string} [color=""]
+	 *   Text color.
+	 */
+	display(msg, color="") {
+		const p = document.createElement("p");
+		p.style.color = color;
+		p.innerText = msg;
+		this.container.appendChild(p);
+	},
+
+	/**
+	 * Logs a message at error level.
+	 *
+	 * @param {object|string} err
+	 *   Message text.
+	 * @param {boolean} [display=true]
+	 *   If `true`, add line to messages displayed in browser.
+	 */
+	error(err, display=true) {
+		let msg = err;
+		if (typeof(err) === "object") {
+			msg = err.message;
+		}
+		console.error(err);
+		if (display) {
+			this.display("ERROR: " + msg, "red");
+		}
+	},
+
+	/**
+	 * Logs a message at warning level.
+	 *
+	 * @param {string} msg
+	 *   Message text.
+	 * @param {boolean} [display=false]
+	 *   If `true`, add line to messages displayed in browser.
+	 * @param {boolean} [traceback=false]
+	 *   If `true`, display traceback in console.
+	 */
+	warn(msg, display=false, traceback=false) {
+		if (traceback) {
+			console.warn(msg + "\n", new Error());
+		} else {
+			console.warn(msg);
+		}
+		if (display) {
+			this.display("WARNING: " + msg, "orange");
+		}
+	},
+
+	/**
+	 * Logs a message at info level.
+	 *
+	 * @param {string} msg
+	 *   Message text.
+	 * @param {boolean} [display=false]
+	 *   If `true`, add line to messages displayed in browser.
+	 */
+	info(msg, display=false) {
+		console.log(msg);
+		if (display) {
+			this.display("INFO: " + msg);
+		}
+	},
+
+	/**
+	 * Logs a message at debug level.
+	 *
+	 * @param {string} msg
+	 *   Message text.
+	 * @param {boolean} [display=false]
+	 *   If `true`, add line to messages displayed in browser.
+	 */
+	debug(msg, display=false) {
+		console.debug(msg);
+		if (display) {
+			this.display("DEBUG: " + msg, "green");
+		}
+	}
+};
+
 const main = {
 	// fetched data
 	data: {},
@@ -144,8 +237,7 @@ const remote = {
 			const text = await res.text();
 			callback(text);
 		} catch (e) {
-			console.error(e);
-			debug("error", e);
+			logger.error(e);
 		}
 	},
 
@@ -164,36 +256,6 @@ const remote = {
 		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
 	}
 };
-
-/**
- * Shows a message for debugging.
- *
- * @param {string} level
- *   Debugging message level. One of "error", "warn", "info", or "debug".
- * @param {string=} msg
- *   Text content. If omitted, `msg` is value of `level` & `level` defaults to "info".
- */
-function debug(level, msg) {
-	if (typeof(msg) === "undefined") {
-		msg = level
-		level = "info";
-	}
-	if (["error", "warn", "info", "debug"].indexOf(level) < 0) {
-		level = "info";
-	}
-	level = level.toLowerCase();
-	let color = "black";
-	if (level === "error") {
-		color = "red";
-	} else if (level === "warn") {
-		color = "orange";
-	} else if (level === "debug") {
-		color = "green";
-	}
-	const element = document.getElementById("debug");
-	element.style.color = color;
-	element.innerText = level.toUpperCase() + ": " + msg;
-}
 
 function parseNumberDefault(value, def) {
 	const res = Number.parseFloat(value);
@@ -278,9 +340,7 @@ function parseWeapons(content) {
 async function fetchWeaponsForClass() {
 	let className = main.data["class"];
 	if (typeof(className) === "undefined") {
-		const msg = "No class selected";
-		console.error(msg);
-		debug("error", msg);
+		logger.error("No class selected");
 		return;
 	}
 
@@ -392,9 +452,7 @@ function parseClasses(content) {
 	let className = params.get("class");
 	if (includes.indexOf(className) < 0) {
 		if (typeof(className) === "string") {
-			const msg = "Unknown weapon class: " + className;
-			console.error(msg);
-			debug("error", msg);
+			logger.error("Unknown weapon class: " + className);
 		}
 		// default to show all weapons
 		className = "all";
