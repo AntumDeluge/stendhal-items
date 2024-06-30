@@ -206,14 +206,13 @@ const remote = {
 	 * Fetches & loads weapons info for selected class.
 	 */
 	async fetchWeaponsForClass() {
-		let className = main.data["class"];
-		if (typeof(className) === "undefined") {
+		if (typeof(main.className) !== "string" || main.className.length === 0) {
 			logger.error("No class selected");
 			return;
 		}
 
-		if (className !== "all") {
-			remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+		if (main.className !== "all") {
+			remote.fetchText("data/conf/items/" + main.className + ".xml", (content) => {
 				parser.getWeapons(content);
 			});
 			return;
@@ -223,42 +222,64 @@ const remote = {
 		const options = select.options;
 		// skip first index since "all" is not an actual weapon class
 		for (let idx = 1; idx < options.length; idx++) {
-			className = options[idx].value;
-			remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+			remote.fetchText("data/conf/items/" + options[idx].value + ".xml", (content) => {
 				parser.getWeapons(content);
 			});
 		}
 	}
 };
 
+/**
+ * Main properties & functions.
+ */
 const main = {
-	// fetched data
-	data: {},
+	/** Parsed Stendhal version. */
+	version: [],
+	/** Item class. */
+	className: "all",
+	/** Attribute by which to sort. */
+	sortBy: "name",
+	/** Sorting order. */
+	descending: false,
+	/** Items data. */
+	items: {},
 
+	/** Property for alternating row background color. */
 	odd: false,
+
+	/**
+	 * Reloads page with query parameters.
+	 *
+	 * @param {string|undefined} query
+	 *   Query parameters.
+	 */
+	reload(query=undefined) {
+		let target = window.location.href;
+		if (query) {
+			target = target.split("?")[0] + "?" + query;
+		}
+		window.location.href = target;
+	},
 
 	// FIXME:
 	//   - need to wait for all item categories to load before sorting
 	//   - need to exclude unavailable items
 	getSorted() {
-		const sortBy = this.data["sort"] || "name";
-		const data = this.data["weapons"];
 		const weapons = [];
-		for (const name in data) {
-			const def = data[name];
+		for (const name in this.items) {
+			const def = this.items[name];
 			def["name"] = name;
 			weapons.push(def);
 		}
 
-		const descending = this.data["descending"];
 		weapons.sort((objA, objB) => {
-			const valueA = objA[sortBy];
-			const valueB = objB[sortBy];
+			const valueA = objA[this.sortBy];
+			const valueB = objB[this.sortBy];
 			if (valueA < valueB) {
-				return descending ? 1 : -1;
+				return this.descending ? 1 : -1;
 			}
 			if (valueA > valueB) {
-				return descending ? -1 : 1;
+				return this.descending ? -1 : 1;
 			}
 			return 0;
 		});
@@ -266,7 +287,10 @@ const main = {
 		return weapons;
 	},
 
-	loadWeapons() {
+	/**
+	 * Displays loaded items data.
+	 */
+	displayItems() {
 		const weapons = this.getSorted();
 
 		for (const properties of weapons) {
@@ -323,18 +347,16 @@ const main = {
 	 *   Class name.
 	 */
 	selectClass(name) {
-		const prevSelected = this.data["class"];
+		const prevSelected = this.className;
 		const select = document.getElementById("classes");
 		for (let idx = 0; idx < select.options.length; idx++) {
 			if (select.options[idx].value === name) {
-				this.data["class"] = name;
+				this.className = name;
 				select.selectedIndex = idx;
 				break;
 			}
 		}
-		if (this.data["class"] !== prevSelected) {
-			remote.fetchWeaponsForClass();
-		}
+		remote.fetchWeaponsForClass();
 	}
 };
 
@@ -342,11 +364,10 @@ const main = {
  * Utility object for type conversion/parsing.
  */
 const parser = {
-
 	/**
 	 * Parses number value from item attributes list.
 	 *
-	 * @param {} attributes
+	 * @param {XMLDocument} attributes
 	 *   Item attributes.
 	 * @param {string} name
 	 *   Attribute name.
@@ -366,7 +387,7 @@ const parser = {
 	/**
 	 * Parses string value from item attributes list.
 	 *
-	 * @param {} attributes
+	 * @param {XMLDocument} attributes
 	 *   Item attributes.
 	 * @param {string} name
 	 *   Attribute name.
@@ -391,16 +412,15 @@ const parser = {
 		content = util.normalize(content);
 		for (const li of content.split("\n")) {
 			if (li.startsWith("version\.old")) {
-				main.data["version"] = [];
 				for (const v of li.split("=")[1].trim().split(".")) {
-					main.data["version"].push(Number.parseInt(v, 10));
+					main.version.push(Number.parseInt(v, 10));
 				}
 				break;
 			}
 		}
-		if (typeof(main.data["version"]) !== "undefined") {
+		if (main.version.length > 0) {
 			let versionString = "";
-			for (const v of main.data["version"]) {
+			for (const v of main.version) {
 				if (versionString.length > 0) {
 					versionString += ".";
 				}
@@ -457,7 +477,6 @@ const parser = {
 	 *   Fetched items XML data.
 	 */
 	getWeapons(content) {
-		const sortBy = main.data["sort"];
 		const weapons = {};
 
 		const xml = new DOMParser().parseFromString(content, "text/xml");
@@ -507,38 +526,20 @@ const parser = {
 			weapons[name] = properties;
 		}
 
-		main.data["weapons"] = weapons;
-		main.loadWeapons();
+		main.items = weapons;
+		main.displayItems();
 	}
 };
 
-main.populate = function() {
-	const params = new URLSearchParams(window.location.search);
-	const sortBy = params.get("sort");
-	if (sortBy) {
-		main.data["sort"] = sortBy;
-		main.data["descending"] = params.get("descending") === "true";
-	}
-	remote.fetchVersion();
-	remote.fetchClasses();
-};
-
-main.reload = function(query=undefined) {
-	let target = window.location.href;
-	if (query) {
-		target = target.split("?")[0] + "?" + query;
-	}
-	window.location.href = target;
-}
-
-main.init = function() {
+// entry point
+document.addEventListener("DOMContentLoaded", () => {
 	document.getElementById("classes").addEventListener("change", (evt) => {
 		const select = evt.target;
 		const className = select.options[select.selectedIndex].value;
 		// reload page to update for changes
 		const params = new URLSearchParams("class=" + className);
-		params.set("sort", this.data["sort"] || "name");
-		params.set("descending", this.data["descending"] || "false");
+		params.set("sort", ""+main.sortBy);
+		params.set("descending", ""+main.descending);
 		main.reload(params.toString());
 	});
 
@@ -552,18 +553,17 @@ main.init = function() {
 				params.set("sort", sortBy);
 			}
 			let descending = false;
-			if (sortBy === this.data["sort"]) {
-				descending = !this.data["descending"];
+			if (sortBy === main.sortBy) {
+				descending = !main.descending;
 			}
 			params.set("descending", ""+descending);
 			main.reload(params.toString());
 		});
 	}
 
-	this.populate();
-};
-
-// entry point
-document.addEventListener("DOMContentLoaded", () => {
-	main.init();
+	const params = new URLSearchParams(window.location.search);
+	main.sortBy = params.get("sort") || main.sortBy;
+	main.descending = params.get("descending") === "true";
+	remote.fetchVersion();
+	remote.fetchClasses();
 });
