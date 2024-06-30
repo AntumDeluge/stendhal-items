@@ -192,14 +192,14 @@ const remote = {
 	 * Fetches current release version from properties file.
 	 */
 	async fetchVersion() {
-		this.fetchText("build.ant.properties", parseVersion);
+		this.fetchText("build.ant.properties", parser.getVersion);
 	},
 
 	/**
 	 * Fetches configured weapons classes.
 	 */
 	async fetchClasses() {
-		this.fetchText("data/conf/items.xml", parseClasses); //, "master", "application/xml");
+		this.fetchText("data/conf/items.xml", parser.getClasses); //, "master", "application/xml");
 	}
 };
 
@@ -289,77 +289,179 @@ const main = {
 	}
 };
 
-function parseAttributeValue(attributes, tag, def=0) {
-	const element = attributes.getElementsByTagName(tag)[0];
-	if (!element) {
-		return def;
-	}
-	const value = element.getAttribute("value");
-	return util.parseNumberDefault(value, def);
-}
+/**
+ * Utility object for type conversion/parsing.
+ */
+const parser = {
 
-function parseAttributeString(attributes, tag) {
-	const element = attributes.getElementsByTagName(tag)[0];
-	if (!element) {
-		return undefined;
-	}
-	return element.getAttribute("value");
-}
-
-function parseWeapons(content) {
-	const sortBy = main.data["sort"];
-	const weapons = {};
-
-	const xml = new DOMParser().parseFromString(content, "text/xml");
-	const items = xml.getElementsByTagName("item");
-	for (let idx = 0; idx < items.length; idx++) {
-		const item = items[idx];
-		const name = item.getAttribute("name");
-
-		const typeInfo = item.getElementsByTagName("type")[0];
-		const properties = {
-			class: typeInfo.getAttribute("class"),
-			image: typeInfo.getAttribute("subclass")
-		};
-		const attributes = item.getElementsByTagName("attributes")[0];
-		properties.level = parseAttributeValue(attributes, "min_level");
-		properties.rate = parseAttributeValue(attributes, "rate");
-		properties.atk = parseAttributeValue(attributes, "atk");
-		properties.dpt = Math.round((properties.atk / properties.rate) * 100) / 100;
-		properties.special = [];
-		const nature = parseAttributeString(attributes, "damagetype");
-		if (typeof(nature) !== "undefined") {
-			properties.special.push(nature);
+	/**
+	 * Parses number value from item attributes list.
+	 *
+	 * @param {} attributes
+	 *   Item attributes.
+	 * @param {string} name
+	 *   Attribute name.
+	 * @param {number} [def=0]
+	 * @returns {number}
+	 *   Parsed number value.
+	 */
+	numberAttribute(attributes, name, def=0) {
+		const element = attributes.getElementsByTagName(name)[0];
+		if (!element) {
+			return def;
 		}
-		const statusAttack = parseAttributeString(attributes, "statusattack");
-		if (typeof(statusAttack) !== "undefined") {
-			if (statusAttack.includes("poison") || statusAttack.includes("venom")) {
-				properties.special.push("poison");
-			} else if (statusAttack.includes(",")) {
-				properties.special.push(statusAttack.split(",")[1]);
-			} else {
-				properties.special.push(statusAttack);
+		const value = element.getAttribute("value");
+		return util.parseNumberDefault(value, def);
+	},
+
+	/**
+	 * Parses string value from item attributes list.
+	 *
+	 * @param {} attributes
+	 *   Item attributes.
+	 * @param {string} name
+	 *   Attribute name.
+	 * @return {string|undefined}
+	 *   Parsed string value or `undefined`.
+	 */
+	stringAttribute(attributes, name) {
+		const element = attributes.getElementsByTagName(name)[0];
+		if (!element) {
+			return undefined;
+		}
+		return element.getAttribute("value");
+	},
+
+	/**
+	 * Parses version from fetched properties file.
+	 *
+	 * @param {string} content
+	 *   Properties file text contents.
+	 */
+	getVersion(content) {
+		content = util.normalize(content);
+		for (const li of content.split("\n")) {
+			if (li.startsWith("version\.old")) {
+				main.data["version"] = [];
+				for (const v of li.split("=")[1].trim().split(".")) {
+					main.data["version"].push(Number.parseInt(v, 10));
+				}
+				break;
 			}
 		}
-		const lifesteal = parseAttributeValue(attributes, "lifesteal");
-		if (lifesteal !== 0) {
-			properties.special.push("lifesteal=" + lifesteal);
+		if (typeof(main.data["version"]) !== "undefined") {
+			let versionString = "";
+			for (const v of main.data["version"]) {
+				if (versionString.length > 0) {
+					versionString += ".";
+				}
+				versionString += v;
+			}
+			document.getElementById("title").innerText = "Stendhal " + versionString + " Weapons";
 		}
-		const def = parseAttributeValue(attributes, "def");
-		if (def !== 0) {
-			properties.special.push("def=" + def);
-		}
-		const range = parseAttributeValue(attributes, "range");
-		if (range !== 0) {
-			properties.special.push("range=" + range);
+	},
+
+	/**
+	 * Parses weapon classes from fetched data.
+	 *
+	 * @param {string} content
+	 *   Weapons XML config data.
+	 */
+	getClasses(content) {
+		content = util.normalize(content);
+
+		const classNames = [];
+		for (let li of content.split("\n")) {
+			li = li.replace(/^\t/, "");
+			if (li.startsWith("<group uri=\"items/")) {
+				const className = li.replace(/<group uri="items\//, "").replace(/\.xml.*$/, "");
+				if (includes.indexOf(className) > -1) {
+					classNames.push(className);
+				}
+			}
 		}
 
-		weapons[name] = properties;
+		const select = document.getElementById("classes");
+		for (const className of classNames) {
+			const opt = document.createElement("option");
+			opt.value = className
+			opt.innerText = className;
+			select.appendChild(opt);
+		}
+
+		const params = new URLSearchParams(window.location.search);
+		let className = params.get("class");
+		if (includes.indexOf(className) < 0) {
+			if (typeof(className) === "string") {
+				logger.error("Unknown weapon class: " + className);
+			}
+			// default to show all weapons
+			className = "all";
+		}
+		selectClass(className);
+	},
+
+	/**
+	 * Parses & loads weapons info from fetched content.
+	 *
+	 * @param {string} content
+	 *   Fetched items XML data.
+	 */
+	getWeapons(content) {
+		const sortBy = main.data["sort"];
+		const weapons = {};
+
+		const xml = new DOMParser().parseFromString(content, "text/xml");
+		const items = xml.getElementsByTagName("item");
+		for (let idx = 0; idx < items.length; idx++) {
+			const item = items[idx];
+			const name = item.getAttribute("name");
+
+			const typeInfo = item.getElementsByTagName("type")[0];
+			const properties = {
+				class: typeInfo.getAttribute("class"),
+				image: typeInfo.getAttribute("subclass")
+			};
+			const attributes = item.getElementsByTagName("attributes")[0];
+			properties.level = this.numberAttribute(attributes, "min_level");
+			properties.rate = this.numberAttribute(attributes, "rate");
+			properties.atk = this.numberAttribute(attributes, "atk");
+			properties.dpt = Math.round((properties.atk / properties.rate) * 100) / 100;
+			properties.special = [];
+			const nature = this.stringAttribute(attributes, "damagetype");
+			if (typeof(nature) !== "undefined") {
+				properties.special.push(nature);
+			}
+			const statusAttack = this.stringAttribute(attributes, "statusattack");
+			if (typeof(statusAttack) !== "undefined") {
+				if (statusAttack.includes("poison") || statusAttack.includes("venom")) {
+					properties.special.push("poison");
+				} else if (statusAttack.includes(",")) {
+					properties.special.push(statusAttack.split(",")[1]);
+				} else {
+					properties.special.push(statusAttack);
+				}
+			}
+			const lifesteal = this.numberAttribute(attributes, "lifesteal");
+			if (lifesteal !== 0) {
+				properties.special.push("lifesteal=" + lifesteal);
+			}
+			const def = this.numberAttribute(attributes, "def");
+			if (def !== 0) {
+				properties.special.push("def=" + def);
+			}
+			const range = this.numberAttribute(attributes, "range");
+			if (range !== 0) {
+				properties.special.push("range=" + range);
+			}
+
+			weapons[name] = properties;
+		}
+
+		main.data["weapons"] = weapons;
+		main.loadWeapons();
 	}
-
-	main.data["weapons"] = weapons;
-	main.loadWeapons();
-}
+};
 
 async function fetchWeaponsForClass() {
 	let className = main.data["class"];
@@ -369,7 +471,9 @@ async function fetchWeaponsForClass() {
 	}
 
 	if (className !== "all") {
-		remote.fetchText("data/conf/items/" + className + ".xml", parseWeapons);
+		remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+			parser.getWeapons(content);
+		});
 		return;
 	}
 
@@ -378,7 +482,9 @@ async function fetchWeaponsForClass() {
 	// skip first index since "all" is not an actual weapon class
 	for (let idx = 1; idx < options.length; idx++) {
 		className = options[idx].value;
-		remote.fetchText("data/conf/items/" + className + ".xml", parseWeapons);
+		remote.fetchText("data/conf/items/" + className + ".xml", (content) => {
+			parser.getWeapons(content);
+		});
 	}
 }
 
@@ -400,75 +506,6 @@ function selectClass(className, sortBy=undefined) {
 	if (main.data["class"] !== prevSelected) {
 		onClassSelected();
 	}
-}
-
-/**
- * Parses version from fetched properties file.
- *
- * @param {string} content
- *   Properties file text contents.
- */
-function parseVersion(content) {
-	content = util.normalize(content);
-	for (const li of content.split("\n")) {
-		if (li.startsWith("version\.old")) {
-			main.data["version"] = [];
-			for (const v of li.split("=")[1].trim().split(".")) {
-				main.data["version"].push(Number.parseInt(v, 10));
-			}
-			break;
-		}
-	}
-	if (typeof(main.data["version"]) !== "undefined") {
-		let versionString = "";
-		for (const v of main.data["version"]) {
-			if (versionString.length > 0) {
-				versionString += ".";
-			}
-			versionString += v;
-		}
-		document.getElementById("title").innerText = "Stendhal " + versionString + " Weapons";
-	}
-}
-
-/**
- * Parses weapon classes from fetched data.
- *
- * @param {string} content
- *   Weapons XML config data.
- */
-function parseClasses(content) {
-	content = util.normalize(content);
-
-	const classNames = [];
-	for (let li of content.split("\n")) {
-		li = li.replace(/^\t/, "");
-		if (li.startsWith("<group uri=\"items/")) {
-			const className = li.replace(/<group uri="items\//, "").replace(/\.xml.*$/, "");
-			if (includes.indexOf(className) > -1) {
-				classNames.push(className);
-			}
-		}
-	}
-
-	const select = document.getElementById("classes");
-	for (const className of classNames) {
-		const opt = document.createElement("option");
-		opt.value = className
-		opt.innerText = className;
-		select.appendChild(opt);
-	}
-
-	const params = new URLSearchParams(window.location.search);
-	let className = params.get("class");
-	if (includes.indexOf(className) < 0) {
-		if (typeof(className) === "string") {
-			logger.error("Unknown weapon class: " + className);
-		}
-		// default to show all weapons
-		className = "all";
-	}
-	selectClass(className);
 }
 
 main.populate = function() {
