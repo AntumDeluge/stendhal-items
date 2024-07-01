@@ -668,6 +668,12 @@ const parser = {
 					item.special.push(statusAttack);
 				}
 			}
+			for (const res of itemData.getElementsByTagName("statusresist")) {
+				let value = Math.round(util.parseNumberDefault(res.getAttribute("value"), 0) * 1000) / 10;
+				if (value != 0) {
+					item.special.push("resist " + res.getAttribute("type") + " (" + (value > 0 ? "+" : "") + value + "%)");
+				}
+			}
 			for (const sus of itemData.getElementsByTagName("susceptibility")) {
 				let value = Math.round(util.parseNumberDefault(sus.getAttribute("value"), 1) * 1000) / 10;
 				if (value !== 100) {
